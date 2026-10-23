@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Intelligent Assistant - Live2D WebGL</title>
+    <link rel="stylesheet" href="style.css?v=47">
+</head>
+<body>
+
+    <!-- LOGIN RESTORED -->
+    <div id="login-view" class="view active">
+        <div class="login-box">
+            <h2>System Authentication</h2>
+            <input type="email" id="email" placeholder="Email Address">
+            <input type="password" id="password" placeholder="Password">
+            <button onclick="attemptLogin()">LOGIN WITH EMAIL</button>
+            <div style="display: flex; gap: 10px; margin-top: 10px;">
+                <button onclick="attemptFaceLogin()" style="background-color: #3b82f6; flex: 1;">👤 Face Login</button>
+            </div>
+            
+            <video id="login-webcam-preview" autoplay playsinline muted style="display:none; width:100%; max-height:200px; border-radius:10px; margin-top:15px; object-fit: cover; border: 2px solid #3b82f6;"></video>
+            
+            <p style="text-align: center; margin-top: 15px; color: #94a3b8; font-size: 0.9em;">First time here?</p>
+            <button onclick="startGuidedSetupWizard()" style="background-color: #10b981; margin-top: 5px;">REGISTER / SIGN UP</button>
+            <p id="login-error" class="error"></p>
+        </div>
+    </div>
+
+    
+    <!-- Guided account setup -->
+    <div id="setup-wizard-view" class="view">
+        <div class="setup-container">
+            <!-- Every account begins with a personal greeting, before optional biometrics. -->
+            <div class="setup-card active" id="setup-card-welcome">
+                <div class="setup-card-title">Hello, I am your AI companion.</div>
+                <p class="setup-card-subtitle">Before we begin, what should I call you?</p>
+
+                <div class="setup-form-container">
+                    <div class="setup-form-group">
+                        <label>Your name</label>
+                        <input type="text" id="setup-input-name" placeholder="e.g. Maya" autocomplete="name" maxlength="80" onkeydown="if (event.key === 'Enter') continueWelcomeSetup()">
+                    </div>
+                </div>
+
+                <div class="setup-btn-group">
+                    <button class="setup-primary-btn" onclick="continueWelcomeSetup()">Continue</button>
+                </div>
+            </div>
+            
+            <!-- Optional face-login enrollment -->
+            <div class="setup-card" id="setup-card-face">
+                <div class="setup-card-title">👤 Face ID Calibration</div>
+                <p class="setup-card-subtitle">Align your face inside the circle below. Look straight, then turn left and right.</p>
+                
+                <div class="face-scanner-container">
+                    <div class="face-camera-wrapper" id="face-camera-wrapper">
+                        <video id="setup-webcam-preview" autoplay playsinline muted></video>
+                        <div class="face-scanner-overlay">
+                            <div class="face-scan-line"></div>
+                        </div>
+                    </div>
+                    <div class="face-angle-badges">
+                        <div class="angle-badge active" id="badge-front">👤 Front</div>
+                        <div class="angle-badge" id="badge-left">👈 Left</div>
+                        <div class="angle-badge" id="badge-right">👉 Right</div>
+                    </div>
+                </div>
+
+                <div class="setup-instruction-box" id="face-instructions">
+                    <strong>Step 1/3:</strong> Look directly into the camera.
+                </div>
+                <div id="face-status-msg" class="setup-status-text">Position your face inside the circle and click 'Capture Angle'.</div>
+
+                <div class="setup-btn-group">
+                    <button class="setup-primary-btn" id="btn-capture-face" onclick="handleCaptureFaceAngle()">📸 Capture Angle</button>
+                    <button class="setup-secondary-btn" id="btn-skip-face" onclick="skipFaceSetup()">Skip Face Login ›</button>
+                </div>
+            </div>
+
+            <!-- Profile and email setup -->
+            <div class="setup-card" id="setup-card-interview">
+                <div class="setup-card-title">🧠 Account & Email Setup</div>
+                <p class="setup-card-subtitle">Your name is saved. Add account and Gmail details if you would like to use those features.</p>
+                
+                <div class="setup-form-container">
+                    <div class="setup-form-group">
+                        <label>📧 Your Gmail Address</label>
+                        <input type="email" id="setup-input-email" placeholder="e.g. yourname@gmail.com">
+                    </div>
+
+                    <div class="setup-form-group">
+                        <label>🔒 Account Password (For Login)</label>
+                        <input type="password" id="setup-input-password" placeholder="Create a strong password">
+                    </div>
+
+                    <div class="setup-form-group">
+                        <label>🔑 16-Character Google App Password</label>
+                        <div class="setup-password-wrap">
+                            <input type="password" id="setup-input-app-pass" placeholder="e.g. abcd efgh ijkl mnop">
+                            <button type="button" class="setup-toggle-pass" onclick="toggleAppPasswordVisibility()">👁️</button>
+                        </div>
+                        <span class="setup-help-note">
+                            ℹ️ Generated in: <em>Google Account › Security › 2-Step Verification › App Passwords</em>
+                        </span>
+                    </div>
+
+                    <div class="setup-form-group">
+                        <label>🎯 Primary Interests / Role (Optional)</label>
+                        <input type="text" id="setup-input-goals" placeholder="e.g. AI Researcher, Night Owl, Football">
+                    </div>
+                </div>
+
+                <div class="setup-btn-group">
+                    <button class="setup-primary-btn" onclick="handleSaveProfileForm()">💾 Save & Connect</button>
+                    <button class="setup-secondary-btn" onclick="handleSkipEmailSetup()">Skip Email ›</button>
+                </div>
+            </div>
+
+            <!-- Setup complete -->
+            <div class="setup-card" id="setup-card-complete">
+                <div class="setup-card-title">🎉 Setup Complete!</div>
+                <p class="setup-card-subtitle">Your personalized Intelligent Assistant profile is ready.</p>
+
+                <div class="setup-summary-card">
+                    <div class="summary-item">✅ <strong>Face Login:</strong> Optional</div>
+                    <div class="summary-item">✅ <strong>Personal Profile:</strong> Calibrated in Local Memory</div>
+                    <div class="summary-item">✅ <strong>Privacy Shield:</strong> Active (100% Offline & Local)</div>
+                </div>
+
+                <button class="setup-primary-btn setup-launch-btn" onclick="launchMainDashboard()">🚀 Launch Assistant</button>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- App View -->
+    <div id="app-view" class="view">
+        <div class="header">
+            <div class="header-left">
+                <div class="hamburger" onclick="toggleMenu()">≡ Menu</div>
+            </div>
+            <div class="menu-dropdown" id="dropdown">
+                <div class="menu-slider" id="menu-slider">
+
+                    <!-- ── PANEL 1: MAIN ─────────────────── -->
+                    <div class="menu-panel" id="menu-main">
+                        <div class="menu-item-arrow" onclick="openPRMPanel(); toggleMenu();">🧠 Social Intel & Strategy <span>›</span></div>
+                        <div class="menu-item-arrow" onclick="openRemindersPanel()">🔔 Reminders <span>›</span></div>
+                        <div class="menu-item-arrow" onclick="openEmailSubPanel()">📧 Email Dashboard <span>›</span></div>
+                        <div class="menu-item-arrow" onclick="openAvatarPanel()">🧘 AI Avatar <span>›</span></div>
+                        <a href="#" onclick="startFaceReenrollment(); return false;"><span aria-hidden="true">👤</span> Update Face ID</a>
+                        <a href="#" onclick="confirmReset()">🔄 Reset Memory</a>
+                        <a href="#" onclick="logout()">🚪 Logout</a>
+                        <a href="#" onclick="exitApp()" style="display: none !important; color: #ef4444;">❌ Exit Application</a>
+                    </div>
+
+                    <!-- ── PANEL 2: AVATAR ───────────────── -->
+                    <div class="menu-panel" id="menu-avatar">
+                        <div class="menu-back" onclick="goBackToMain()">‹ Back</div>
+                        <div class="menu-panel-title">🧘 Choose Avatar</div>
+                        <button id="theme-btn-innocent" class="avatar-theme-btn active" onclick="switchTheme('innocent'); toggleMenu()">✨ Innocent</button>
+                        <button id="theme-btn-badgirl" class="avatar-theme-btn" onclick="switchTheme('badgirl'); toggleMenu()">🖤 Bad Girl</button>
+                    </div>
+
+                    <!-- ── PANEL 3: EMAIL ────────────────── -->
+                    <div class="menu-panel menu-panel-email" id="menu-email">
+                        <div class="menu-back" onclick="goBackToMain()">‹ Back</div>
+                        <div class="ep-tabs">
+                            <button class="ep-tab active" id="ep-tab-inbox" onclick="switchEPTab('inbox')">📥 Inbox</button>
+                        </div>
+                        <div id="ep-inbox" class="ep-content">
+                            <div class="ep-toolbar">
+                                <span id="ep-inbox-status">Click refresh</span>
+                                <button class="ep-refresh-btn" onclick="fetchEmailsPanel()">🔄</button>
+                            </div>
+                            <div id="ep-email-list" class="ep-email-list"></div>
+                        </div>
+                    </div>
+
+                    <!-- ── PANEL 4: REMINDERS ────────────── -->
+                    <div class="menu-panel menu-panel-email" id="menu-reminders">
+                        <div class="menu-back" onclick="goBackToMain()">‹ Back</div>
+                        <div class="ep-toolbar">
+                            <span id="rp-status">Your upcoming reminders</span>
+                            <button class="ep-refresh-btn" onclick="fetchRemindersPanel()">🔄</button>
+                        </div>
+                        <div id="rp-list" class="ep-email-list rp-list"></div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="canvas-container" id="canvas-container">
+                <div class="clip-wrapper">
+                    <canvas id="avatar-canvas" width="400" height="400"></canvas>
+                </div>
+                <!-- AUDIO WAVEFORM -->
+                <div id="audio-visualizer" class="audio-visualizer hidden">
+                    <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+                    <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+                    <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+                    <div class="bar"></div>
+                </div>
+            </div>
+            <div class="chat-container">
+                <div class="chat-header">Conversation</div>
+                <div id="chat-box" class="chat-box"></div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <form id="text-chat-form" class="text-chat-composer" onsubmit="submitTextMessage(event)" novalidate>
+                <label class="sr-only" for="text-chat-input">Message the assistant</label>
+                <textarea id="text-chat-input" class="text-chat-input" rows="1" placeholder="Type your message..." autocomplete="off"></textarea>
+                <button id="send-text-btn" class="send-text-btn" type="submit" disabled>Send</button>
+            </form>
+            <button id="talk-btn" class="talk-btn" onclick="triggerTalk()">TALK</button>
+            <p id="status-text">System: Ready.</p>
+        </div>
+    </div>
+
+
+
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- ── COGNITIVE SOCIAL INTEL & STRATEGY HUB MODAL (PRM) ──────────────── -->
+    <div id="prm-modal" class="prm-modal hidden">
+        <div class="prm-container">
+            <div class="prm-header">
+                <div class="prm-title-wrap">
+                    <div class="prm-title">🧠 Social Intel & Semantic Network Hub</div>
+                    <div class="prm-subtitle">Knowledge Graph, psychological profiling, hidden leverage & tactical meeting preparation</div>
+                </div>
+                <div class="prm-tabs-bar">
+                    <button class="prm-tab-btn active" id="btn-tab-dossier" onclick="switchPRMView('dossier')">📋 Structured Dossiers</button>
+                    <button class="prm-tab-btn" id="btn-tab-graph" onclick="switchPRMView('graph')" style="display: none !important;">🕸️ Visual Semantic Network</button>
+                </div>
+                <div class="prm-actions">
+                    <button class="prm-btn-primary" onclick="openAddIntelModal()">+ Add Intel</button>
+                    <button class="prm-close-btn" onclick="closePRMPanel()">✕</button>
+                </div>
+            </div>
+
+            <!-- VIEW 1: DOSSIER DIRECTORY -->
+            <div class="prm-layout" id="prm-dossier-layout">
+                <!-- LEFT: Contacts Sidebar -->
+                <div class="prm-sidebar">
+                    <div class="prm-search-box">
+                        <input type="text" id="prm-search-input" placeholder="🔍 Search people, traits, triggers..." oninput="filterPRMContacts()">
+                    </div>
+                    <div class="prm-contacts-list" id="prm-contacts-list">
+                        <!-- Populated by app.js -->
+                    </div>
+                </div>
+
+                <!-- RIGHT: Dossier & Tactical Simulator -->
+                <div class="prm-content">
+                    <div id="prm-empty-state" class="prm-empty-state">
+                        <div class="prm-empty-icon">👥</div>
+                        <div class="prm-empty-title">Select a person to view their psychological dossier</div>
+                        <div class="prm-empty-desc">Or talk to your assistant naturally — it will automatically profile people and their behaviors in the background.</div>
+                    </div>
+
+                    <div id="prm-dossier-view" class="prm-dossier-view hidden">
+                        <div class="prm-dossier-banner">
+                            <div class="prm-dossier-avatar" id="prm-dossier-avatar">👤</div>
+                            <div class="prm-dossier-meta">
+                                <h2 id="prm-dossier-name">Name</h2>
+                                <span class="prm-rel-badge" id="prm-dossier-rel">Relationship</span>
+                            </div>
+                        </div>
+
+                        <!-- 5-Category Psychological Matrix -->
+                        <div class="prm-matrix-grid">
+                            <div class="prm-card prm-card-triggers">
+                                <div class="prm-card-title">⚡ Emotional Triggers & Sensitivities</div>
+                                <div class="prm-tags-container" id="prm-list-triggers"></div>
+                            </div>
+
+                            <div class="prm-card prm-card-leverage">
+                                <div class="prm-card-title">🎯 Motivations & Negotiation Leverage</div>
+                                <div class="prm-tags-container" id="prm-list-leverage"></div>
+                            </div>
+
+                            <div class="prm-card prm-card-family">
+                                <div class="prm-card-title">👨‍👩‍👧 Family & Personal Ties</div>
+                                <div class="prm-tags-container" id="prm-list-family"></div>
+                            </div>
+
+                            <div class="prm-card prm-card-personality">
+                                <div class="prm-card-title">💼 Personality & Communication Style</div>
+                                <div class="prm-tags-container" id="prm-list-personality"></div>
+                            </div>
+
+                            <div class="prm-card prm-card-commitments full-span">
+                                <div class="prm-card-title">🤝 Commitments & Mutual Promises</div>
+                                <div class="prm-tags-container" id="prm-list-commitments"></div>
+                            </div>
+                        </div>
+
+                        <!-- Tactical Meeting & Negotiation Prep Simulator -->
+                        <div class="prm-sim-container">
+                            <div class="prm-sim-header">
+                                <span>♟️ Tactical Meeting Prep & Negotiation Simulator</span>
+                            </div>
+                            <div class="prm-sim-row">
+                                <input type="text" id="prm-sim-goal" placeholder="e.g. Ask for budget extension, negotiate partnership, resolve conflict..." onkeydown="if(event.key==='Enter') handleRunStrategySimulation()">
+                                <button class="prm-sim-submit-btn" id="btn-run-sim" onclick="handleRunStrategySimulation()">Generate Game Plan</button>
+                            </div>
+                            <div id="prm-sim-output" class="prm-sim-output hidden"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW 2: INTERACTIVE VISUAL SEMANTIC NETWORK GRAPH -->
+            <div class="prm-graph-layout hidden" id="prm-graph-layout" style="display: none !important;">
+                <div class="graph-toolbar">
+                    <div class="graph-legend">
+                        <span class="legend-dot dot-person">● Person</span>
+                        <span class="legend-dot dot-project">● Project</span>
+                        <span class="legend-dot dot-trigger">● Trigger</span>
+                        <span class="legend-dot dot-family">● Family</span>
+                        <span class="legend-dot dot-preference">● Preference</span>
+                        <span class="legend-dot dot-concept">● Concept</span>
+                    </div>
+                    <div class="graph-controls">
+                        <span id="graph-node-count" class="graph-node-count">0 Nodes</span>
+                        <button class="graph-btn" onclick="graphZoom(1.2)" title="Zoom In">🔍+</button>
+                        <button class="graph-btn" onclick="graphZoom(0.8)" title="Zoom Out">🔍−</button>
+                        <button class="graph-btn" onclick="graphResetView()" title="Reset View">🔄 Reset</button>
+                    </div>
+                </div>
+
+                <div class="graph-canvas-container" id="graph-canvas-container">
+                    <canvas id="knowledge-graph-canvas"></canvas>
+
+                    <!-- FLOATING NODE INSPECTOR -->
+                    <div class="graph-inspector hidden" id="graph-inspector">
+                        <div class="inspector-header">
+                            <span class="inspector-title" id="insp-name">Concept Name</span>
+                            <span class="inspector-type-badge" id="insp-type">Type</span>
+                            <button class="inspector-close" onclick="closeGraphInspector()">✕</button>
+                        </div>
+                        <div class="inspector-body">
+                            <div class="inspector-section-title">Relationships (Edges):</div>
+                            <div class="inspector-links-list" id="insp-links"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- QUICK ADD INTEL MODAL -->
+    <div id="prm-add-modal" class="prm-mini-modal hidden">
+        <div class="prm-mini-card">
+            <div class="prm-mini-header">
+                <h3>📝 Add Social Intel / Note</h3>
+                <button onclick="closeAddIntelModal()" class="prm-mini-close">✕</button>
+            </div>
+            <div class="prm-mini-body">
+                <label>Person's Name</label>
+                <input type="text" id="add-intel-name" placeholder="e.g. Alex, Dinesh, Prof. Miller">
+                
+                <label>Relationship</label>
+                <input type="text" id="add-intel-rel" placeholder="e.g. Colleague, Client, Friend, Boss">
+
+                <label>Category</label>
+                <select id="add-intel-cat">
+                    <option value="Personality">Personality & Communication Style</option>
+                    <option value="Trigger">Emotional Trigger / Sensitivity</option>
+                    <option value="Family">Family & Personal Background</option>
+                    <option value="Leverage">Negotiation Leverage & Motivations</option>
+                    <option value="Preference">Personal Preference / Hobby</option>
+                    <option value="Commitment_Owed_To_Me">Commitment Owed To Me</option>
+                    <option value="Commitment_I_Owe">Commitment I Owe</option>
+                </select>
+
+                <label>Intel / Behavioral Note</label>
+                <textarea id="add-intel-desc" rows="3" placeholder="e.g. Values concise bullet points, stressed about budget cuts this month..."></textarea>
+            </div>
+            <div class="prm-mini-footer">
+                <button class="prm-btn-primary" onclick="submitAddIntel()">Save to Memory</button>
+                <button class="setup-secondary-btn" onclick="closeAddIntelModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST CONTAINER -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <script src="app.js?v=47"></script>
+</body>
+</html>

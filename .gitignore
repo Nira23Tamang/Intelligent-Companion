@@ -1,0 +1,40 @@
+# =====================================================================
+# Intelligent Assistant - Git Ignore Rules
+# Protects private credentials, local databases, biometric captures, 
+# and files exceeding GitHub's 100 MB upload limit.
+# =====================================================================
+
+# H2 Database files (contains local user credentials, tokens, and history)
+*.mv.db
+*.trace.db
+*.db
+
+# Biometric face captures (real webcam photos)
+JavaApp/biometric_data/faces/*.png
+!JavaApp/biometric_data/faces/.gitkeep
+
+# Temporary TTS audio files
+JavaApp/tts_*.wav
+*.wav
+
+# Maven compiled build artifacts
+JavaApp/target/
+target/
+
+# Large model files exceeding GitHub's 100 MB limit
+# (emotion_model.onnx is ~378 MB; GitHub strictly blocks files > 100 MB)
+JavaApp/models/emotion_model.onnx
+
+# IDE & Editor configuration
+.idea/
+*.iml
+.vscode/
+*.class
+
+# Operating System temporary files
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Log files
+*.log
